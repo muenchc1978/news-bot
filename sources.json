@@ -1,0 +1,10 @@
+{
+  "feeds": [
+    {
+      "name": "Tagesschau",
+      "url": "https://www.tagesschau.de/xml/rss2",
+      "category": "news",
+      "enabled": true
+    }
+  ]
+}
