@@ -1,0 +1,25 @@
+name: Auto-Commit Sources
+
+on:
+  push:  # Wenn Code gepusht wird, startet der Workflow
+  workflow_dispatch:  # Manuelles Triggern möglich
+  schedule:
+    - cron: '0 * * * *'  # Läuft jede Stunde (kann angepasst werden)
+
+jobs:
+  commit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository klonen
+        uses: actions/checkout@v4
+
+      - name: Git konfigurieren
+        run: |
+          git config --global user.email "your-email@example.com"
+          git config --global user.name "AutoBot"
+
+      - name: Änderungen committen und pushen
+        run: |
+          git add sources.json
+          git commit -m "Automatische Aktualisierung der Quellen" || echo "Keine Änderungen vorhanden"
+          git push
