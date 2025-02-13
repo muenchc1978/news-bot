@@ -1,10 +1,10 @@
 name: Auto-Commit Sources
 
 on:
-  push:  # Startet bei jedem Push
-  workflow_dispatch:  # Manuelles Starten möglich
+  push:
+  workflow_dispatch:
   schedule:
-    - cron: '0 * * * *'  # Läuft jede Stunde (anpassbar)
+    - cron: '0 * * * *'  # Jede Stunde
 
 jobs:
   commit:
@@ -12,16 +12,21 @@ jobs:
     steps:
       - name: Repository klonen
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Git konfigurieren
         run: |
           git config --global user.email "github-actions@github.com"
           git config --global user.name "GitHub AutoBot"
 
-      - name: Änderungen committen und pushen
+      - name: Änderungen committen
         run: |
           git add sources.json
           git commit -m "🔄 Automatische Aktualisierung der Quellen" || echo "ℹ️ Keine Änderungen vorhanden"
-          git push
+
+      - name: Änderungen pushen
+        run: |
+          git push origin HEAD:${{ github.ref }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
