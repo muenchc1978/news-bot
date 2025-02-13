@@ -1,15 +1,28 @@
 from fastapi import FastAPI, HTTPException
 import feedparser
 import os
+import json
 import requests
 
 app = FastAPI()
 
-# 📌 Liste der RSS-Feeds, die abgefragt werden
-RSS_FEEDS = [
-    "https://www.tagesschau.de/xml/rss2",
-    "https://rss.nytimes.com/services/xml/rss/nyt/World.xml"
-]
+# 📌 JSON-Datei mit RSS-Feeds
+SOURCES_FILE = "sources.json"
+
+def load_sources():
+    """🔄 Lädt die RSS-Quellen aus der sources.json-Datei"""
+    if not os.path.exists(SOURCES_FILE):
+        return []
+    
+    with open(SOURCES_FILE, "r", encoding="utf-8") as file:
+        try:
+            data = json.load(file)
+            return [feed["url"] for feed in data.get("feeds", []) if feed["enabled"]]
+        except json.JSONDecodeError:
+            return []  # Falls die Datei fehlerhaft ist
+
+# 📥 Lade alle RSS-Feeds aus der Datei
+RSS_FEEDS = load_sources()
 
 # 🔑 Telegram API Konfiguration
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -23,7 +36,10 @@ def home():
         "message": "🚀 FastAPI läuft auf Render!",
         "endpoints": {
             "/rss": "Holt die neuesten RSS-News",
-            "/send": "Sendet News an den Telegram-Bot"
+            "/send": "Sendet News an den Telegram-Bot",
+            "/feeds": "Listet gespeicherte RSS-Feeds auf",
+            "/add_feed?name=XYZ&url=XYZ&category=XYZ": "Fügt eine neue Quelle hinzu",
+            "/remove_feed?name=XYZ": "Löscht eine Quelle"
         }
     }
 
@@ -79,3 +95,57 @@ def send_news_to_telegram():
     
     send_telegram_message(news)
     return {"message": "📤 News an Telegram gesendet!"}
+
+
+# 🔧 RSS-Feed Verwaltung API
+@app.get("/feeds")
+def list_feeds():
+    """📂 Listet die gespeicherten RSS-Feeds auf"""
+    with open(SOURCES_FILE, "r", encoding="utf-8") as file:
+        data = json.load(file)
+        return data.get("feeds", [])
+
+@app.post("/add_feed")
+def add_feed(name: str, url: str, category: str):
+    """➕ Fügt einen neuen RSS-Feed hinzu"""
+    with open(SOURCES_FILE, "r+", encoding="utf-8") as file:
+        data = json.load(file)
+        feeds = data.get("feeds", [])
+
+        # Prüfen, ob die URL bereits existiert
+        if any(feed["url"] == url for feed in feeds):
+            raise HTTPException(status_code=400, detail="Feed existiert bereits!")
+
+        # Feed hinzufügen
+        new_feed = {"name": name, "url": url, "category": category, "enabled": True}
+        feeds.append(new_feed)
+        data["feeds"] = feeds
+
+        # Datei aktualisieren
+        file.seek(0)
+        json.dump(data, file, indent=4)
+        file.truncate()
+
+    return {"message": f"✅ RSS-Feed '{name}' wurde hinzugefügt!"}
+
+@app.delete("/remove_feed")
+def remove_feed(name: str):
+    """❌ Entfernt einen RSS-Feed"""
+    with open(SOURCES_FILE, "r+", encoding="utf-8") as file:
+        data = json.load(file)
+        feeds = data.get("feeds", [])
+
+        # Filtere den Feed raus
+        updated_feeds = [feed for feed in feeds if feed["name"] != name]
+
+        if len(updated_feeds) == len(feeds):
+            raise HTTPException(status_code=404, detail="Feed nicht gefunden!")
+
+        data["feeds"] = updated_feeds
+
+        # Datei aktualisieren
+        file.seek(0)
+        json.dump(data, file, indent=4)
+        file.truncate()
+
+    return {"message": f"🗑️ RSS-Feed '{name}' wurde entfernt!"}
