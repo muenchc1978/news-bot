@@ -1,10 +1,10 @@
 name: Auto-Commit Sources
 
 on:
-  push:  # Wenn Code gepusht wird, startet der Workflow
-  workflow_dispatch:  # Manuelles Triggern möglich
+  push:  # Workflow wird bei Push ausgelöst
+  workflow_dispatch:  # Manuelles Starten erlaubt
   schedule:
-    - cron: '0 * * * *'  # Läuft jede Stunde (kann angepasst werden)
+    - cron: '0 */6 * * *'  # Alle 6 Stunden (kann angepasst werden)
 
 jobs:
   commit:
@@ -12,14 +12,20 @@ jobs:
     steps:
       - name: Repository klonen
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_PAT }}  # Nutzt das Secret für Authentifizierung
 
       - name: Git konfigurieren
         run: |
-          git config --global user.email "your-email@example.com"
-          git config --global user.name "AutoBot"
+          git config --global user.email "bot@yourdomain.com"
+          git config --global user.name "NewsBot"
 
       - name: Änderungen committen und pushen
         run: |
-          git add sources.json
-          git commit -m "Automatische Aktualisierung der Quellen" || echo "Keine Änderungen vorhanden"
-          git push
+          if [ -f sources.json ]; then  # Prüft, ob Datei existiert
+            git add sources.json
+            git commit -m "🔄 Automatische Aktualisierung der Quellen" || echo "⚠️ Keine Änderungen vorhanden"
+            git push origin main  # Stellt sicher, dass der Push zur Hauptbranch geht
+          else
+            echo "⚠️ Datei sources.json existiert nicht, kein Commit."
+          fi
